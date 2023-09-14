@@ -1,18 +1,10 @@
+import torch
 from torch import nn
 from torch.nn import functional as F
 from matplotlib import pyplot as plt
 import numpy
 from torchvision import transforms, datasets
 
-# step 2
-
-
-idx = 1
-
-# plt.imshow(train_set.data[idx], cmap='gray')
-# plt.show()
-
-# step 3
 class MLP(nn.Module):
     
     def __init__(self, N_input=784, N_bottleneck=8, N_output=784):
@@ -25,24 +17,19 @@ class MLP(nn.Module):
         self.type = 'MLP4'
         self.input_type = (1, 28*28)
         
-    def forward(self, X):
-        # encoder
+    def encode(self, X):
         X = self.fc1(X)
         X = F.relu(X)
         X = self.fc2(X)
         X = F.relu(X)
+        return X
         
-        # decoder
+    def decode(self, X):
         X = self.fc3(X)
         X = F.relu(X)
         X = self.fc4(X)
         X = F.sigmoid(X)
-        
         return X
         
-        
-        
-        
-    
-    
-    
+    def forward(self, X):
+        return self.decode(self.encode(X))

@@ -1,16 +1,15 @@
 import datetime
+import argparse
 import torch
+import matplotlib.pyplot as plt
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils import data
 from torch.optim.lr_scheduler import StepLR
 from model import MLP
-import argparse
 from torchvision import transforms, datasets
 from torchsummary import summary
 from torch.utils.data import DataLoader
-import numpy as np
-from torch.autograd import Variable
 
 
 # -z 8 -e 50 -b 2048 -s MLP.8.pth -p loss.MLP.8.png
@@ -25,44 +24,63 @@ def train(n_epochs, optimizer, model, loss_fn, train_loader, scheduler, device):
     for epoch in range(1, n_epochs+1):
         print('epoch ', epoch)
         loss_train = 0.0
-        for batch_idx, (data, target) in enumerate(train_loader):
-            data = Variable(data)
-            target = Variable(target)
-            data, target = data.to((device)), target.to(device)
-            data = data.view(data.size(0), -1) # Flatten the data
-
+        for idx, (imgs, _) in enumerate(train_loader):
+            imgs = imgs.view(imgs.size(0), -1) # Flatten the imgs
+            imgs = imgs.to((device))
+            
+            # compute output
+            outputs = model(imgs)
+            loss = loss_fn(outputs, imgs)
+            
+            # compute gradient and do SGD step
             optimizer.zero_grad()
-            outputs = model(data)
-            loss = loss_fn(outputs, target)
             loss.backward()
             loss_train += loss.item()
+            
             optimizer.step()
 
         scheduler.step()
 
         losses_train += [loss_train/len(train_loader)]
+        
 
         print('{} Epoch {}, Training loss {}'.format(
             datetime.datetime.now(), epoch, loss_train/len(train_loader)))
+    return losses_train    
 
-
-def main(z, e, b, s, p):
-
+def run_train(z, e, b, s, p):
     train_loader = DataLoader(datasets.MNIST('./data/mnist',
                                              train=True,
                                              download=True,
                                              transform=transforms.Compose([transforms.ToTensor()])),
-                              batch_size=1024,
+                              batch_size=b,
                               shuffle=True)
 
+    # Initialize Model and hyperparameters
     model = MLP(N_bottleneck=z)
-    lr = 0.001
-    opt = optim.Adam(model.parameters(), lr=lr)
-    loss = nn.CrossEntropyLoss()
+    opt = optim.Adam(model.parameters(), lr=0.001, weight_decay=0.00001)
+    loss = nn.MSELoss()
     sched = StepLR(opt, step_size=100, gamma=0.1)
-    train(e, opt, model, loss, train_loader, sched, 'cuda')
+    
+    # Summarize model and data
     summary(model, (1, 28*28))
+    
+    # Train model
+    losses_train = train(e, opt, model, loss, train_loader, sched, 'cuda')
+    
+    # Save model
+    torch.save(model.state_dict(), s)
+    
+    # Plot loss curve
+    plt.plot(losses_train)
+    plt.xlabel('epochs')
+    plt.ylabel('loss')
+    plt.title('Loss Curve')
+    plt.savefig(p)
+    
 
+def main(z, e, b, s, p):
+    run_train(z, e, b, s, p)
 
 if __name__ == "__main__":
     # Initialize argparse

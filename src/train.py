@@ -1,37 +1,101 @@
 import argparse
 import datetime
+import matplotlib.pyplot as plt
+import torch
+from torch.optim import Adam, lr_scheduler
+from torch.utils.data import DataLoader
+from torchvision import transforms
+from torchsummary import summary
+from custom_dataset import custom_dataset
 from AdaIN_net import encoder_decoder, AdaIN_net
 
-def train(model, n_epochs, optimizer, scheduler, loss_fn, train_loader, device):
+
+def train(model, n_epochs, n_batches, optimizer, scheduler, ct_loader, st_loader, device):
+    print("training...")
+    
     model.train()
     model.to(device)
+    
+    c_losses_train=[]
+    s_losses_train=[]
     losses_train=[]
     
     for epoch in range(1, n_epochs+1):
-        print('epoch', epoch)
-        loss_train=0.0
-        for inputs, true_out in train_loader:
-            outputs = model(inputs)
-            loss = loss_fn(outputs, true_out)
+        loss_train = c_loss_train = s_loss_train = 0.0
+        
+        for b in range(1, n_batches+1):
+            # print('epoch {}, batch {}'.format(epoch, b))
+            content_images = next(iter(ct_loader)).to(device)
+            style_images = next(iter(st_loader)).to(device)
+            c_loss, s_loss = model(content_images, style_images)
+            
+            loss = c_loss + s_loss
             
             optimizer.zero_grad()
             loss.backward()
-            loss_train+=loss.item()
+            
+            loss_train += loss.item()
+            c_loss_train += c_loss.item()
+            s_loss_train += s_loss.item()
             
             optimizer.step()
             
-        scheduler.step()
+            scheduler.step()
+            
+            c_losses_train += [loss_train/len(ct_loader)]
+            s_losses_train += [loss_train/len(st_loader)]
+            losses_train += [loss_train/len(st_loader)]
         
-        losses_train += [loss_train/len(train_loader)]
+            print('{} Epoch {}, Batch {}, Content loss {}, Style loss {}'.format(datetime.datetime.now(), epoch, b, c_loss_train/len(ct_loader), s_loss_train/len(st_loader)))
+    return losses_train, c_losses_train, s_losses_train  
         
-        print('{} Epoch {}, Training loss {}'.format(datetime.datetime.now(), epoch, loss_train/len(train_loader)))
-    return losses_train    
-        
+
+def train_transform():
+    transform_list = [
+        transforms.Resize(size=(512, 512)),
+        transforms.RandomCrop(256),
+        transforms.ToTensor()
+    ]
+    return transforms.Compose(transform_list)
 
 def main(content_dir, style_dir, gamma, n_epochs, batch_size, load_encoder, save_decoder, plot_decoder, device):
     model = AdaIN_net(encoder_decoder.encoder, encoder_decoder.decoder)
     
-    train(model, n_epochs, device)
+    # Summarize model and data
+    summary(model, (1, 256*256))
+    
+    content_tf = train_transform()
+    style_tf = train_transform()
+    
+    content_dataset = custom_dataset(content_dir, transform=content_tf)
+    style_dataset = custom_dataset(style_dir, transform=style_tf)
+    
+    content_loader = DataLoader(content_dataset, batch_size, shuffle=True)
+    style_loader = DataLoader(style_dataset, batch_size, shuffle=True)
+ 
+    optimizer = Adam(model.decoder.parameters(), lr=0.01)
+    sched = lr_scheduler.StepLR(optimizer, step_size=100, gamma=gamma)
+    
+    decoder = encoder_decoder.decoder
+    encoder = encoder_decoder.encoder
+
+    encoder.load_state_dict(torch.load(load_encoder))
+    my_model = AdaIN_net(encoder, decoder)
+    
+    loss, c_loss, s_loss  = train(model, n_epochs, batch_size, optimizer, sched, content_loader, style_loader, device)
+    
+    torch.save(my_model.decoder.state_dict(), save_decoder)
+    
+    # Plot loss curve
+    plt.plot(loss, label='Total Loss', marker='o', linestyle='-', color='red')
+    plt.plot(c_loss, label='Content Loss', marker='o', linestyle='-', color='blue')
+    plt.plot(s_loss, label='Style Loss', marker='o', linestyle='-', color='yellow')
+    plt.legend()
+    plt.xlabel('epochs')
+    plt.ylabel('loss')
+    plt.title('Loss Curve')
+    plt.savefig(plot_decoder)
+    
 
 
 if __name__ == "__main__":
@@ -51,4 +115,4 @@ if __name__ == "__main__":
         device='cuda'
     else:
         device='cpu'
-    main(args.content_dir, args.style_dir, args.gamma, args.e, args.b, args.l, args.s, args.p, device)
+    main(args.content_dir, args.style_dir, args.gamma, args.epochs, args.batch_size, args.load_encoder, args.save_decoder, args.plot_decoder, device)

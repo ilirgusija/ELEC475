@@ -1,0 +1,2 @@
+python3 test.py -encoder_file encoder.pth -decoder_file decoder10van.pth -d 10 -cuda Y
+python3 test.py -encoder_file encoder.pth -decoder_file decoder100van.pth -d 100 -cuda Y

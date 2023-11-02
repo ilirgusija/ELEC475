@@ -1,0 +1,2 @@
+python3 train.py -gamma 0.1 -e 30 -d 10 -b 32 -l encoder.pth -s decoder10van.pth -p decoder10van.png -cuda Y
+python3 train.py -gamma 0.1 -e 30 -d 100 -b 32 -l encoder.pth -s decoder100van.pth -p decoder100van.png -cuda Y

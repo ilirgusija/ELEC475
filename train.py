@@ -82,7 +82,7 @@ def main(gamma, n_epochs, dataset, batch_size, save_encoder, load_encoder, save_
             model = image_classifier(encoder, encoder_decoder.decoder100van)
         params = model.decoder.parameters()
     elif(modelType=='modified'):
-        model = mod_NN(encoder=mod_encoder, num_classes=dataset)
+        model = mod_NN(encoder=mod_encoder.encoder, num_classes=dataset)
         params = model.parameters()
     else:
         print("No valid model type chosen, aborting...")
@@ -127,4 +127,4 @@ if __name__ == "__main__":
         device='cuda'
     else:
         device='cpu'
-    main(args.gamma, args.epochs, args.dataset, args.batch_size, args.load_encoder, args.save_decoder, args.plot_model, args.model_type, device)
+    main(args.gamma, args.epochs, args.dataset, args.batch_size, args.save_encoder, args.load_encoder, args.save_decoder, args.plot_model, args.model_type, device)

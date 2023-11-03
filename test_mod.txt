@@ -1,2 +1,2 @@
-python3 test.py -encoder_file encoder_mod_10.pth -decoder_file decoder_van_10.pth -d 10 -cuda Y
-python3 test.py -encoder_file encoder_mod_100.pth -decoder_file decoder_van_100.pth -d 100 -cuda Y
+python3 test.py -encoder_file encoder_mod_10.pth -decoder_file decoder_mod_10.pth -m modified -d 10 -cuda Y
+python3 test.py -encoder_file encoder_mod_100.pth -decoder_file decoder_mod_100.pth -m modified -d 100 -cuda Y

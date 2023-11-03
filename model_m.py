@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch
 
 
 class ResidualBlock(nn.Module):
@@ -54,20 +55,21 @@ class encoder_decoder:
     )
 
 class mod_NN(nn.Module):
-    def __init__(self, encoder=None, decoder=None, num_classes=10):
+    def __init__(self, encoder=None, decoderFile=None, num_classes=10):
         super(mod_NN, self).__init__()
-        self.encoder = encoder
-        self.decoder = decoder
+        self.encoder = encoder_decoder.encoder
+        self.decoder = nn.Sequential(
+            nn.AdaptiveAvgPool2d((1, 1)),
+            Flatten(),
+            nn.Linear(512, num_classes),
+        )
         if self.encoder == None:
-            self.encoder = encoder_decoder.encoder
             self.init_encoder_weights(mean=0.0, std=0.01)
         if self.decoder == None:
-            self.decoder = nn.Sequential(
-                nn.AdaptiveAvgPool2d((1, 1)),
-                Flatten(),
-                nn.Linear(512, num_classes),
-            )
             self.init_decoder_weights(mean=0.0, std=0.01)
+        else:
+            self.decoder.load_state_dict(torch.load(decoderFile))
+
             
     def init_encoder_weights(self, mean, std):
         for param in self.encoder.parameters():

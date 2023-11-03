@@ -5,7 +5,7 @@ import argparse
 import os
 import torch
 import torchvision.transforms as transforms
-from model import image_classifier, encoder_decoder
+from model_v import image_classifier, encoder_decoder
 from train import import_dataset
 
 

@@ -135,7 +135,7 @@ class SE_ResModule(nn.Module):
         out = F.relu(out)
         return out
 
-class encoder_decoder:
+class backends:
     encoder_se_resnet = nn.Sequential(
         nn.Conv2d(3, 3, (1, 1)),
         SE_ResModule(ResidualBlock(3, 64)),
@@ -154,9 +154,9 @@ class encoder_decoder:
     )
 
 class object_classifier(nn.Module):
-    def __init__(self, encoder=None, decoderFile=None, num_classes=2):
+    def __init__(self, encoder=None, decoderFile=None):
         super(object_classifier, self).__init__()
-        self.encoder = encoder_decoder.encoder
+        self.encoder = encoder if encoder != None else backends.encoder_se_resnet
         self.decoder = nn.Sequential(
             nn.AdaptiveAvgPool2d((1, 1)),
             Flatten(),

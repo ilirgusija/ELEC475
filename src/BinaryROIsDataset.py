@@ -11,7 +11,7 @@ class BinaryROIsDataset(Dataset):
         self.transform = transform
         self.padding = padding
         self.img_dir = os.path.join(data_dir, data_type)
-        self.labels = self._read_labels(os.path.join(data_dir, f'labels_{data_type}.txt'))
+        self.labels = self._read_labels(os.path.join(data_dir, f'labels.txt'))
 
     def __len__(self):
         return len(self.labels)

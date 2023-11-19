@@ -1,1 +1,1 @@
-python3 train_classifier.py -gamma -e 50 -d ../data/Kitti8ROIs/train -b 32 -s ../output/classifier.pth -p  -cuda Y
+python3 train_classifier.py -gamma -e 50 -d ../data/Kitti8_ROIs/train -b 32 -s ../output/classifier.pth -p  -cuda Y

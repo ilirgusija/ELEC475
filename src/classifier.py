@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 
-
 class Flatten(nn.Module):
     def forward(self, input):
         return input.view(input.size(0), -1)
@@ -31,6 +30,8 @@ class SqueezeExcitationBlock(nn.Module):
 class BasicBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1, groups=1):
         super(BasicBlock, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         self.conv1 = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3,
                                 stride=stride, padding=1, groups=groups, bias=False),
@@ -51,6 +52,8 @@ class BasicBlock(nn.Module):
 class BottleneckBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1, groups=1, mid_channels=None):
         super(BottleneckBlock, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         if mid_channels == None:
             mid_channels = in_channels // 2
         self.conv1 = nn.Sequential(
@@ -74,7 +77,7 @@ class BottleneckBlock(nn.Module):
         X = self.conv2(X)
         X = self.conv3(X)
         return X
-    
+
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, block=None):
         super(ResidualBlock, self).__init__()
@@ -98,12 +101,11 @@ class ResNeXtBlock(ResidualBlock):
     def __init__(self, in_channels, out_channels, cardinality=32):
         super(ResNeXtBlock, self).__init__(in_channels,
                                            out_channels,
-                                           BottleneckBlock(in_channels=self.in_channels,
-                                                            mid_channels=self.in_channels//2,
-                                                            out_channels=self.out_channels,
-                                                            groups=in_channels // cardinality,
-                                                            stride=in_channels // out_channels),
-                                           in_channels//2)
+                                           BottleneckBlock(in_channels=in_channels,
+                                                            mid_channels=in_channels//2,
+                                                            out_channels=out_channels,
+                                                            groups=cardinality,
+                                                            stride=in_channels // out_channels))
 
     def forward(self, x):
         residual = x
@@ -118,7 +120,7 @@ class SE_ResModule(nn.Module):
     def __init__(self, block, reduction_ratio=16):
         super(SE_ResModule, self).__init__()
         self.block = block
-        self.se_block = SqueezeExcitationBlock(self.out_channels, reduction_ratio)
+        self.se_block = SqueezeExcitationBlock(self.block.block.out_channels, reduction_ratio)
 
     def forward(self, X):
         residual = X
@@ -146,7 +148,7 @@ class backends:
     )
     encoder_se_resneXt = nn.Sequential(
         nn.Conv2d(3, 3, (1, 1)),
-        SE_ResModule(ResNeXtBlock(3, 64)),
+        SE_ResModule(ResNeXtBlock(3, 64, cardinality=1)),
         SE_ResModule(ResNeXtBlock(64, 128)),
         SE_ResModule(ResNeXtBlock(128, 256)),
         SE_ResModule(ResNeXtBlock(256, 256)),
@@ -167,7 +169,7 @@ class object_classifier(nn.Module):
             nn.Linear(128, 2),
         )
         
-        if self.decoderFile!=None:
+        if decoderFile!=None:
             self.decoder.load_state_dict(torch.load(decoderFile))
 
     def encode(self, X):

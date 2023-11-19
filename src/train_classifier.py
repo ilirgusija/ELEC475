@@ -48,7 +48,7 @@ def main(gamma, n_epochs, data_dir, batch_size, save_model, plot_model, device):
 
     transform = transforms.Compose([
         transforms.ToTensor(),
-        transform.Resize((150,150)),
+        transforms.Resize((150,150)),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Standard normalization
     ])
 

@@ -60,8 +60,8 @@ def run(model, dataset, device):
     print(f"Mean IoU for 'Car' ROIs: {mean_iou}")
 
     
-def main(classifier_params, device):
-    dataset = KittiDataset(input_dir, training=False)
+def main(data_dir, classifier_params, device):
+    dataset = KittiDataset(data_dir, training=False)
     
     model = YODA(classifier_params)
     
@@ -79,38 +79,20 @@ if __name__ == "__main__":
     default_data_dir = os.path.join(parent_dir, "data/Kitti8")
     default_classifier = os.path.join(parent_dir, "output/classifier.pth")
     
-    print('running BB Regression ...')
+    print('running YODA ...')
 
     label_file = 'labels.txt'
 
     argParser = argparse.ArgumentParser(description="Script for running YODA model")
-    argParser.add_argument('-i', metavar='input_dir', type=str, help='input dir (./)')
-    argParser.add_argument('-o', metavar='output_dir', type=str, help='output dir (./)')
     argParser.add_argument('-d', '--data_dir', type=str, default=default_data_dir, help='Data directory location')
     argParser.add_argument('-c', '--classifier_params', type=str, default=default_classifier, help='Classifier weights')
-    argParser.add_argument('-s', '--save_model', type=str, default="model.pth", help='Path to save the model')
-    argParser.add_argument('-IoU', metavar='IoU_threshold', type=float, help='[0.02]')
-    argParser.add_argument('-v', metavar='verbose', type=bool, default=False, help='[y/N]')
     argParser.add_argument('-cuda', choices=['Y', 'N'], default='Y', help='Whether to use CUDA (Y/N)')
 
-
     args = argParser.parse_args()
-
-    input_dir = None
-    if args.i != None:
-        input_dir = args.i
-
-    output_dir = None
-    if args.o != None:
-        output_dir = args.o
 
     IoU_threshold = 0.02
     if args.IoU != None:
         IoU_threshold = float(args.IoU)
-
-    training = True
-    if args.m == 'test':
-        training = False
 
     use_cuda = False
     if args.cuda != None:
@@ -124,4 +106,4 @@ if __name__ == "__main__":
         device = 'cuda'
     print('using device ', device)
     
-    main(args.gamma, args.epochs, args.classifier_params, args.data_dir, args.batch_size, IoU_threshold, args.verbose, args.plot_model, device)
+    main(args.data_dir, args.classifier_params, device)

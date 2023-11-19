@@ -8,9 +8,7 @@ from KittiDataset import KittiDataset
 from KittiAnchors import Anchors
 
 save_ROIs = True
-car_count = 0
-nocar_count = 0
-max_examples_per_class = 10000
+max_ROIs = -1
 
 def main():
 
@@ -64,8 +62,11 @@ def main():
     dataset = KittiDataset(input_dir, training=training)
     anchors = Anchors()
 
-    
-    for i, (image, label) in enumerate(dataset):
+    i = 0
+    for item in enumerate(dataset):
+        idx = item[0]
+        image = item[1][0]
+        label = item[1][1]
         # print(i, idx, label)
 
         idx = dataset.class_label['Car']
@@ -81,20 +82,6 @@ def main():
                 x = anchor_centers[j][1]
                 y = anchor_centers[j][0]
                 cv2.circle(image1, (x, y), radius=4, color=(255, 0, 255))
-
-        # for j in range(len(centers)):
-        #     center = centers[j]
-        #     for k in range(len(anchor_shapes)):
-        #         anchor_shape = anchor_shapes[k]
-        #         pt1 = (int(center[0]-anchor_shape[0]/2), int(center[1]-anchor_shape[1]/2))
-        #         pt2 = (int(center[0]+anchor_shape[0]/2), int(center[1]+anchor_shape[1]/2))
-        #         cv2.rectangle(image, pt1, pt2, (0, 255, 255))
-        #
-        #     cv2.imshow('image', image)
-        #     key = cv2.waitKey(0)
-        #     if key == ord('x'):
-        #         break
-
         ROIs, boxes = anchors.get_anchor_ROIs(image, anchor_centers, anchors.shapes)
         # print('break 555: ', boxes)
 
@@ -107,22 +94,14 @@ def main():
         
         for k in range(len(boxes)):
             filename = str(i) + '_' + str(k) + '.png'
+            if save_ROIs == True:
+                cv2.imwrite(os.path.join(output_dir,filename), ROIs[k])
+            name_class = 0
+            name = 'NoCar'
             if ROI_IoUs[k] >= IoU_threshold:
-                if car_count >= max_examples_per_class:
-                    continue  # Skip if already have enough 'Car' examples
                 name_class = 1
                 name = 'Car'
-                car_count += 1
-            else:
-                if nocar_count >= max_examples_per_class:
-                    continue  # Skip if already have enough 'NoCar' examples
-                name_class = 0
-                name = 'NoCar'
-                nocar_count += 1
-
-            if save_ROIs:
-                cv2.imwrite(os.path.join(output_dir, filename), ROIs[k])
-            labels.append([filename, name_class, name])
+            labels += [[filename, name_class, name]]
 
 
         if show_images:
@@ -140,75 +119,16 @@ def main():
                     pt1 = (box[0][1],box[0][0])
                     pt2 = (box[1][1],box[1][0])
                     cv2.rectangle(image2, pt1, pt2, color=(0, 255, 255))
-
-                # print(ROI_IoUs[k])
-                # box = boxes[k]
-                # pt1 = (box[0][1],box[0][0])
-                # pt2 = (box[1][1],box[1][0])
-                # cv2.rectangle(image2, pt1, pt2, color=(0, 255, 255))
-                # cv2.imshow('boxes', image2)
-                # key = cv2.waitKey(0)
-                # if key == ord('x'):
-                #     break
-
-        if show_images:
             cv2.imshow('boxes', image2)
             key = cv2.waitKey(0)
             if key == ord('x'):
                 break
 
-    #     for j in range(len(label)):
-    #         name = label[j][0]
-    #         name_class = label[j][1]
-    #         minx = int(label[j][2])
-    #         miny = int(label[j][3])
-    #         maxx = int(label[j][4])
-    #         maxy = int(label[j][5])
-    #
-    #         roi = image[miny:maxy,minx:maxx]
-    #         # roi = cv2.resize(roi, (width,height))
-    #
-    #         if save_full_ROI == True:
-    #             filename = str(i) + '.png'
-    #             cv2.imwrite(os.path.join(output_dir,filename), roi)
-    #             labels += [[filename, name_class, name]]
-    #             # print(i, filename, name_class, name)
-    #
-    #         dy = maxy - miny + 1
-    #         dx = maxx - minx + 1
-    #         if anchors.min_range[0] < dy and anchors.min_range[1] < dx:
-    #             for k in range(len(anchors.shapes)):
-    #                 shape = anchors.shapes[k]
-    #                 dy = int(((maxy - miny)-shape[0])/2)
-    #                 dx = int(((maxx - minx)-shape[1])/2)
-    #                 miny2 = miny + dy
-    #                 maxy2 = maxy - dy
-    #                 minx2 = minx + dx
-    #                 maxx2 = maxx - dx
-    #
-    #                 # print('break 08: ', miny2, maxy2, minx2, maxx2)
-    #                 if dx > 0 and dy > 0 and miny2 < maxy2 and minx2 < maxx2:
-    #                     roi = image[miny2:maxy2, minx2:maxx2]
-    #                     # roi = cv2.resize(roi, (width,height))
-    #                     filename = str(i) + '_' + str(k) + '.png'
-    #                     cv2.imwrite(os.path.join(output_dir, filename), roi)
-    #                     labels += [[filename, name_class, name]]
-    #
-    #                     if show_images == True:
-    #                         image1 = image.copy()
-    #                         cv2.rectangle(image1, (minx,miny), (maxx, maxy), (0,0,255))
-    #                         cv2.imshow('image', image1)
-    #                         cv2.imshow('roi', roi)
-    #
-    #                         key = cv2.waitKey(0)
-    #                         if key == ord('x'):
-    #                             break
-    #
+        i += 1
         print(i)
 
-        if car_count >= max_examples_per_class and nocar_count >= max_examples_per_class:
-            break  # Stop if both classes have enough examples
-
+        if max_ROIs > 0 and i >= max_ROIs:
+            break
     #
     # print(labels)
     #
@@ -225,3 +145,5 @@ def main():
 ###################################################################
 
 main()
+
+

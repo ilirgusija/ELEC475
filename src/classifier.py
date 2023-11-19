@@ -143,7 +143,15 @@ class SE_ResModule(nn.Module):
         return out
 
 class backends:
-    encoder_se_resnet = nn.Sequential(
+    resnet = nn.Sequential(
+        nn.Conv2d(3, 3, (1, 1)),
+        ResidualBlock(3, 64),
+        ResidualBlock(64, 128),
+        ResidualBlock(128, 256),
+        ResidualBlock(256, 256),
+        ResidualBlock(256, 512),
+    )
+    se_resnet = nn.Sequential(
         nn.Conv2d(3, 3, (1, 1)),
         SE_ResModule(ResidualBlock(3, 64)),
         SE_ResModule(ResidualBlock(64, 128)),
@@ -151,7 +159,7 @@ class backends:
         SE_ResModule(ResidualBlock(256, 256)),
         SE_ResModule(ResidualBlock(256, 512)),
     )
-    encoder_se_resneXt = nn.Sequential(
+    se_resneXt = nn.Sequential(
         nn.Conv2d(3, 3, (1, 1)),
         SE_ResModule(ResNeXtBlock(3, 64, cardinality=1)),
         SE_ResModule(ResNeXtBlock(64, 128)),
@@ -159,6 +167,7 @@ class backends:
         SE_ResModule(ResNeXtBlock(256, 256)),
         SE_ResModule(ResNeXtBlock(256, 512)),
     )
+    
 
 class object_classifier(nn.Module):
     def __init__(self, encoder=None, decoderFile=None):
@@ -171,11 +180,28 @@ class object_classifier(nn.Module):
             nn.ReLU(),
             nn.Linear(256, 128),
             nn.ReLU(),
-            nn.Linear(128, 2),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64,32),
+            nn.ReLU(),
+            nn.Linear(32,1),
+            nn.Sigmoid()
         )
-        
-        if decoderFile!=None:
+        if encoder == None:
+            self.init_encoder_weights(mean=0.0, std=0.01)
+        if decoderFile == None:
+            self.init_decoder_weights(mean=0.0, std=0.01)
+        else:
             self.decoder.load_state_dict(torch.load(decoderFile))
+    
+    def init_encoder_weights(self, mean, std):
+        for param in self.encoder.parameters():
+            nn.init.normal_(param, mean=mean, std=std)
+    
+    def init_decoder_weights(self, mean, std):
+        for param in self.decoder.parameters():
+            nn.init.normal_(param, mean=mean, std=std)
+
 
     def encode(self, X):
         return self.encoder(X)

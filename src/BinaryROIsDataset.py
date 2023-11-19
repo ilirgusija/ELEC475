@@ -3,15 +3,20 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 import os
 import cv2
+import random
+from collections import defaultdict, Counter
 
 class BinaryROIsDataset(Dataset):
-    def __init__(self, data_dir, data_type='train', transform=None, padding=True):
+    def __init__(self, data_dir, data_type='train', transform=None, padding=False, balance_data=True, target_balance_ratio=0.5):
         self.data_dir = data_dir
         self.data_type = data_type
         self.transform = transform
         self.padding = padding
         self.img_dir = os.path.join(data_dir, data_type)
-        self.labels = self._read_labels(os.path.join(self.img_dir, f'labels.txt'))
+        self.labels = self._read_labels(os.path.join(self.img_dir, 'labels.txt'))
+
+        if balance_data:
+            self.labels = self._balance_data(self.labels)
 
     def __len__(self):
         return len(self.labels)
@@ -33,24 +38,22 @@ class BinaryROIsDataset(Dataset):
             labels = [line.strip().split() for line in f.readlines()]
         return [(label[0], int(label[1])) for label in labels]
 
-    def _pad_image(self, image):
-        old_size = image.shape[:2] # old_size is in (height, width) format
-        desired_size = 150
+    def _count_labels(self):
+        labels = [label for _, label in self.labels]
+        return Counter(labels)
 
-        # Calculate the new size, maintaining the aspect ratio
-        ratio = float(desired_size)/max(old_size)
-        new_size = tuple([int(x*ratio) for x in old_size])
+    def _balance_data(self, labels):
+        # Separate labels by class
+        class_0_labels = [label for label in labels if label[1] == 0]
+        class_1_labels = [label for label in labels if label[1] == 1]
 
-        # Resize the image to new_size
-        resized = cv2.resize(image, (new_size[1], new_size[0]))
+        # Truncate the majority class
+        minority_class_size = min(len(class_0_labels), len(class_1_labels))
+        balanced_class_0_labels = random.sample(class_0_labels, minority_class_size)
+        balanced_class_1_labels = random.sample(class_1_labels, minority_class_size)
 
-        # Create a new image and paste the resized on it
-        delta_w = desired_size - new_size[1]
-        delta_h = desired_size - new_size[0]
-        top, bottom = delta_h//2, delta_h-(delta_h//2)
-        left, right = delta_w//2, delta_w-(delta_w//2)
+        # Combine and shuffle
+        balanced_labels = balanced_class_0_labels + balanced_class_1_labels
+        random.shuffle(balanced_labels)
 
-        color = [0, 0, 0]
-        new_im = cv2.copyMakeBorder(resized, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)
-
-        return new_im
+        return balanced_labels

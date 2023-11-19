@@ -21,7 +21,7 @@ def train(model, n_epochs, loss_fn, optimizer, scheduler, train_loader, device):
     for epoch in range(1, n_epochs+1):
         print('epoch ', epoch)
         loss_train = 0.0
-        for imgs, desired in train_loader:
+        for i, (imgs, desired) in enumerate(train_loader):
             imgs = imgs.to(device)
             desired = desired.to(device) 
             
@@ -35,7 +35,9 @@ def train(model, n_epochs, loss_fn, optimizer, scheduler, train_loader, device):
             loss_train += loss.item()
             
             optimizer.step()
+            print('{} Epoch {}, Batch{}, Training loss {}'.format(datetime.datetime.now(), epoch, i, loss_train/len(train_loader)))
 
+        
         scheduler.step()
 
         losses_train += [loss_train/len(train_loader)] # average out loss over the epoch

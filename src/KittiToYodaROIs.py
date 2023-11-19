@@ -7,11 +7,11 @@ import argparse
 from KittiDataset import KittiDataset
 from KittiAnchors import Anchors
 
-save_ROIs = True
-max_ROIs = -1
+
 
 def main():
-
+    save_ROIs = True
+    max_ROIs = -1
     print('running KittiToYoda ...')
 
     label_file = 'labels.txt'

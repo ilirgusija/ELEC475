@@ -24,7 +24,9 @@ class SqueezeExcitationBlock(nn.Module):
         )
 
     def forward(self, X):
+        batch_size, num_channels, _, _ = X.size()
         X = self.block(X)
+        X = X.view(batch_size, num_channels, 1, 1)  # Reshape for broadcasting
         return X
 
 class BasicBlock(nn.Module):
@@ -81,6 +83,8 @@ class BottleneckBlock(nn.Module):
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, block=None):
         super(ResidualBlock, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         stride = 2 if in_channels != out_channels else 1
         self.downsample = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False),
@@ -106,7 +110,8 @@ class ResNeXtBlock(ResidualBlock):
                                                             out_channels=out_channels,
                                                             groups=cardinality,
                                                             stride=in_channels // out_channels))
-
+        self.in_channels = in_channels
+        self.out_channels = out_channels
     def forward(self, x):
         residual = x
         out = self.block.forward(x)
@@ -120,14 +125,14 @@ class SE_ResModule(nn.Module):
     def __init__(self, block, reduction_ratio=16):
         super(SE_ResModule, self).__init__()
         self.block = block
-        self.se_block = SqueezeExcitationBlock(self.block.block.out_channels, reduction_ratio)
+        self.se_block = SqueezeExcitationBlock(self.block.out_channels, reduction_ratio)
 
     def forward(self, X):
         residual = X
         
-        res_out = self.block.forward(self, X)
+        res_out = self.block.forward(X)
         se_out = self.se_block.forward(res_out)
-        
+
         out = res_out * se_out
         
         if self.block.downsample is not None:

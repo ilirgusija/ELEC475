@@ -57,7 +57,7 @@ def train(model, n_epochs, loss_fn, optimizer, scheduler, train_loader, test_loa
             optimizer.step()
             # if i==100:
             #     sys.exit()
-            # print('{} Epoch {}, Batch{}, Training loss {}'.format(datetime.datetime.now(), epoch, i, loss.item()))
+            print('{} Epoch {}, Batch{}, Training loss {}'.format(datetime.datetime.now(), epoch, i, loss.item()))
 
         scheduler.step()
         avg_train_loss = loss_train / len(train_loader)
@@ -79,7 +79,7 @@ def main(gamma, n_epochs, model_type, learning_rate, data_dir, batch_size, save_
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         transforms.RandomHorizontalFlip(),
-        transforms.Resize((150, 150)),
+        transforms.Resize((150, 150), antialiasing=True),
     ])    
 
     # if sampling=="downsample":

@@ -6,8 +6,9 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 import os
 import torch.nn as nn
+import torchvision
 
-    
+
 def main(classifier_file, data_dir, batch_size, model_type, device):
 
     transform = transforms.Compose([
@@ -19,10 +20,16 @@ def main(classifier_file, data_dir, batch_size, model_type, device):
     test_dataset = BinaryROIsDataset(data_dir=data_dir, data_type='test', transform=transform)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-    model = object_classifier(encoder=getattr(backends, model_type, None))
+    if model_type=='resnet_18':
+        model = torchvision.models.resnet18()
+        model.fc = nn.Sequential(nn.Linear(model.fc.in_features, 1))
+    else:
+        model = object_classifier(encoder=getattr(backends, model_type, None))
+        model = object_classifier(encoder=getattr(backends, 'encoder', None))
+
     model.load_state_dict(torch.load(classifier_file))
     
-    loss_fn = nn.BCELoss()
+    loss_fn = nn.BCEWithLogitsLoss()
     
     model.to(device)
     model.eval()
@@ -49,6 +56,7 @@ def main(classifier_file, data_dir, batch_size, model_type, device):
             
     # Calculate the errors
     print("Correct: {}, Total: {}".format(correct, total))
+    print("Accuracy: {}".format((correct / total) * 100)))
     print("Test Loss: {}".format(loss_test/len(test_loader)))
     
     error = 1.0 - (correct / float(total))
@@ -67,7 +75,7 @@ if __name__ == "__main__":
     default_data_dir = os.path.join(parent_dir, "data/Kitti8ROIs")
     parser = argparse.ArgumentParser(description="Training script for Image classification")
     parser.add_argument('-c', '--classifier_params', type=str, default=default_classifier, help='Classifier weights')
-    parser.add_argument('-m', '--model_type', choices=['resnet', 'se_resnet', 'se_resneXt'], default='resnet', help='Classifier type')
+    parser.add_argument('-m', '--model_type', choices=['resnet', 'se_resnet', 'se_resneXt', 'resnet_18'], default='resnet', help='Classifier type')
     parser.add_argument('-d', '--data_dir', type=str, default=default_data_dir, help='Data directory location')
     parser.add_argument('-b', '--batch_size', type=int, default=20, help='Batch size for testing')
     parser.add_argument('-cuda', choices=['Y', 'N'], default='Y', help='Whether to use CUDA (Y/N)')

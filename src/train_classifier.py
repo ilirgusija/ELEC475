@@ -79,7 +79,7 @@ def main(gamma, n_epochs, model_type, learning_rate, data_dir, batch_size, save_
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         transforms.RandomHorizontalFlip(),
-        transforms.Resize((150, 150), antialiasing=True),
+        transforms.Resize((150, 150)),
     ])    
 
     # if sampling=="downsample":
@@ -98,7 +98,7 @@ def main(gamma, n_epochs, model_type, learning_rate, data_dir, batch_size, save_
         model.fc = nn.Sequential(nn.Linear(model.fc.in_features, 1))
     else:
         model = object_classifier(encoder=getattr(backends, model_type, None))
-        model = object_classifier(encoder=getattr(backends, encoder, None))
+        # model = object_classifier(encoder=getattr(backends, 'encoder', None))
     
     loss_fn = nn.BCEWithLogitsLoss()
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)

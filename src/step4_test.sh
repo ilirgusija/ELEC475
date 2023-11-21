@@ -1,1 +1,1 @@
-python3 runYODA.py  -d ../data/Kitti8/test/ -c ../outputs/classifier.pth -cuda Y
+python3 runYODA.py -m resnet_18 -d ../data/Kitti8/ -c ../output/classifier_resnet_18.pth -cuda Y

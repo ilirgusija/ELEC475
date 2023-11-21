@@ -1,9 +1,0 @@
-python3 train_classifier.py -gamma 0.1 -e 35 -m resnet -lr 0.0001 -d ../data/Kitti8_ROIs -b 128 -s ../output/classifier_resnet_d.pth -p ../output/loss_resnet_d.png -d_p downsample -cuda Y
-python3 train_classifier.py -gamma 0.1 -e 35 -m se_resnet -lr 0.0001 -d ../data/Kitti8_ROIs -b 128 -s ../output/classifier_se_resnet_d.pth -p ../output/loss_se_resnet_d.png -d_p downsample -cuda Y
-python3 train_classifier.py -gamma 0.1 -e 35 -m se_resneXt -lr 0.0001 -d ../data/Kitti8_ROIs -b 128 -s ../output/classifier_se_resneXt_d.pth -p ../output/loss_se_resneXt_d.png -d_p downsample -cuda Y
-python3 train_classifier.py -gamma 0.1 -e 35 -m resnet -lr 0.0001 -d ../data/Kitti8_ROIs -b 128 -s ../output/classifier_resnet_w.pth -p ../output/loss_resnet_w.png -d_p weighted -cuda Y
-python3 train_classifier.py -gamma 0.1 -e 35 -m se_resnet -lr 0.0001 -d ../data/Kitti8_ROIs -b 128 -s ../output/classifier_se_resnet_w.pth -p ../output/loss_se_resnet_w.png -d_p weighted -cuda Y
-python3 train_classifier.py -gamma 0.1 -e 35 -m se_resneXt -lr 0.0001 -d ../data/Kitti8_ROIs -b 128 -s ../output/classifier_se_resneXt_w.pth -p ../output/loss_se_resneXt_w.png -d_p weighted -cuda Y
-cd ../
-tar -czvf output.tar.gz output
-cp output.zip /content/drive/MyDrive

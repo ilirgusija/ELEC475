@@ -1,3 +1,7 @@
 __pycache__
 data
 *.zip
+output
+data
+*tar*
+*zip*

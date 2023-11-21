@@ -7,11 +7,10 @@ import random
 from collections import defaultdict, Counter
 
 class BinaryROIsDataset(Dataset):
-    def __init__(self, data_dir, data_type='train', transform=None, padding=False, balance_data=True, target_balance_ratio=0.5):
+    def __init__(self, data_dir, data_type='train', transform=None, balance_data=False):
         self.data_dir = data_dir
         self.data_type = data_type
         self.transform = transform
-        self.padding = padding
         self.img_dir = os.path.join(data_dir, data_type)
         self.labels = self._read_labels(os.path.join(self.img_dir, 'labels.txt'))
 
@@ -26,9 +25,7 @@ class BinaryROIsDataset(Dataset):
         img_path = os.path.join(self.img_dir, img_name)
         image = cv2.imread(img_path)
 
-        if self.padding:
-            image = self._pad_image(image)
-        elif self.transform:
+        if self.transform:
             image = self.transform(image)
 
         return image, label

@@ -1,1 +1,0 @@
-python3 test_classifier.py -c ../data/classifier.pth -d ../data/Kitti8_ROIs/test/ -b 32 -cuda Y

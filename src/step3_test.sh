@@ -1,0 +1,1 @@
+python3 test_classifier.py -c ../output/classifier_se_resneXt_d.pth -m se_resneXt -d ../data/Kitti8_ROIs/ -b 128 -cuda Y

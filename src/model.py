@@ -32,14 +32,11 @@ class CustomKeypointModel(nn.Module):
 
     def forward(self, x):
         x = self.resnet18(x)
-
         x = self.relu(self.upconv1(x))
         x = self.relu(self.upconv2(x))
         x = self.relu(self.upconv3(x))
         x = self.relu(self.upconv4(x))
         x = self.relu(self.upconv5(x))
-
-
         x = self.sigmoid(x)
 
         return x

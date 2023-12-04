@@ -2,14 +2,10 @@ from torch.utils.data import Dataset
 import torch
 from torchvision import transforms
 import re
-import xml.etree.ElementTree as ET
 import cv2
-import matplotlib.pyplot as plt
 import os
 import numpy as np
 from PIL import Image
-from random import shuffle
-import random
 import torch
 
 # heatmap
@@ -91,7 +87,6 @@ class HeatmapKeypointDataset(Dataset):
         heatmap = torch.tensor(heatmap, dtype=torch.float32)
 
         return image_resized, heatmap
-
 
 # not heatmap!
 class KeypointDataset(Dataset):

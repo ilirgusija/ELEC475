@@ -9,14 +9,14 @@ import matplotlib.pyplot as plt
 from torchsummary import summary
 
 def test_heatmap_main():
-    root_folder = "data"
-    dataset = HeatmapKeypointDataset(root_folder, target_size=(256, 256))
-    num_samples = len(dataset)
+    root_folder = "../data/oxford-iiit-pet-noses/images"
+    dataset = HeatmapKeypointDataset(root_folder, "test_noses.txt", target_size=(256, 256))
     test_model = CustomKeypointModel()
-    test_model.load_state_dict(torch.load('../heatmap_params/best_model.pth'))
+    checkpoint = torch.load('../heatmap_output/best_model_checkpoint.pth')
+    test_model.load_state_dict(checkpoint['model_state_dict'])
     test_model.eval()
 
-    idx = torch.randint(0, num_samples, (1,)).item()
+    idx = torch.randint(0, len(dataset), (1,)).item()
     image, heatmap = dataset[idx]
     image_to_model = image.unsqueeze(0)
 
@@ -41,11 +41,13 @@ def test_heatmap_main():
     plt.show()
     
 def test_single_main():
-    root_folder = "data"
-    dataset = KeypointDataset(root_folder, target_size=(256, 256))
+    root_folder = "../data/oxford-iiit-pet-noses/images/"
+    dataset = KeypointDataset(root_folder, "test_noses.txt", target_size=(256, 256))
     num_samples = len(dataset)
     test_model = single_point()
-    test_model.load_state_dict(torch.load('../single_params/best_model.pth'))
+    checkpoint = torch.load('../single_point_output/best_model_checkpoint.pth')
+    test_model.load_state_dict(checkpoint['model_state_dict'])
+    test_model.eval()
     test_model.eval()
 
     idx = torch.randint(0, num_samples, (1,)).item()
@@ -69,5 +71,5 @@ def test_single_main():
     plt.title('Ground Truth and Predicted Points')
     
 if __name__ == "__main__":
-    test_single_main()
+    # test_single_main()
     test_heatmap_main()

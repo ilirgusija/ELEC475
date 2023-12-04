@@ -4,6 +4,11 @@ import torchvision.models as models
 import torch.nn.init as init
 from torchvision.models import ResNet18_Weights
 
+import torch.nn as nn
+import torchvision.models as models
+import torch.nn.init as init
+
+
 class CustomKeypointModel(nn.Module):
     def __init__(self):
         super(CustomKeypointModel, self).__init__()
@@ -12,20 +17,26 @@ class CustomKeypointModel(nn.Module):
 
         fc_input = resnet18.fc.in_features
 
-        self.upconv1 = nn.ConvTranspose2d(fc_input, 256, kernel_size=4, stride=2, padding=1)
-        self.upconv2 = nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1)
-        self.upconv3 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)
-        self.upconv4 = nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1)
-        self.upconv5 = nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2, padding=1)
+        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+
+        self.conv1 = nn.Conv2d(fc_input, 256, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(256)
+        self.conv2 = nn.Conv2d(256, 128, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(128)
+        self.conv3 = nn.Conv2d(128, 64, kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm2d(64)
+        self.conv4 = nn.Conv2d(64, 32, kernel_size=3, padding=1)
+        self.bn4 = nn.BatchNorm2d(32)
+        self.conv5 = nn.Conv2d(32, 1, kernel_size=3, padding=1)
 
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU()
 
-        self._initialize_upsampling_weights()
+        self._initialize_weights()
 
-    def _initialize_upsampling_weights(self):
-        for m in [self.upconv1, self.upconv2, self.upconv3, self.upconv4]:
-            if isinstance(m, nn.ConvTranspose2d):
+    def _initialize_weights(self):
+        for m in [self.conv1, self.conv2, self.conv3, self.conv4, self.conv5]:
+            if isinstance(m, nn.Conv2d):
                 init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
                 if m.bias is not None:
                     init.constant_(m.bias, 0)
@@ -33,16 +44,19 @@ class CustomKeypointModel(nn.Module):
     def forward(self, x):
         x = self.resnet18(x)
 
-        x = self.relu(self.upconv1(x))
-        x = self.relu(self.upconv2(x))
-        x = self.relu(self.upconv3(x))
-        x = self.relu(self.upconv4(x))
-        x = self.relu(self.upconv5(x))
-
-
-        x = self.sigmoid(x)
+        x = self.upsample(x)
+        x = self.relu(self.bn1(self.conv1(x)))
+        x = self.upsample(x)
+        x = self.relu(self.bn2(self.conv2(x)))
+        x = self.upsample(x)
+        x = self.relu(self.bn3(self.conv3(x)))
+        x = self.upsample(x)
+        x = self.relu(self.bn4(self.conv4(x)))
+        x = self.upsample(x)
+        x = self.sigmoid(self.conv5(x))
 
         return x
+
 
 class single_point(nn.Module):
     def __init__(self):

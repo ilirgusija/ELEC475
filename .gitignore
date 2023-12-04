@@ -1,1 +1,4 @@
-data/*
+data/oxford-iiit-pet-noses/images/*
+!data/oxford-iiit-pet-noses/images/train_noses.3.txt
+!data/oxford-iiit-pet-noses/images/test_noses.txt
+__pycache__

@@ -7,48 +7,30 @@ import os
 import numpy as np
 from PIL import Image
 import torch
+import sys
 
-# heatmap
 class HeatmapKeypointDataset(Dataset):
-    def __init__(self, root_dir, target_size=(256, 256)):
+    def __init__(self, root_dir, labels_file, target_size=(256, 256)):
         self.root_dir = root_dir
+        self.labels_file = os.path.join(root_dir, labels_file)
         self.target_size = target_size
         self.data = self.load_data()
 
     def load_data(self):
         data = []
-        for folder_name in os.listdir(self.root_dir):
-            if folder_name != '103':
-                folder_path = os.path.join(self.root_dir, folder_name)
-                if os.path.isdir(folder_path):
-                    txt_file_path = os.path.join(folder_path, "labels.txt")
-                    if os.path.exists(txt_file_path):
-                        with open(txt_file_path, "r") as file:
-                            lines = file.readlines()
-                            for line in lines[1:]:
-                                elements = line.replace(
-                                    '"', '').strip().split(",")
-                                if all(element is not None for element in elements):
-                                    image_path = os.path.join(
-                                        folder_path, elements[0])
-                                    if not os.path.exists(image_path):
-                                        print("Could not find image:",
-                                              image_path)
-                                        continue
-                                    x_match = re.search(
-                                        r'\((\d+)', elements[1])
-                                    y_match = re.search(
-                                        r'(\d+)\)', elements[2])
-                                    if x_match and y_match:
-                                        x = float(x_match.group(1))
-                                        y = float(y_match.group(1))
-                                        keypoint = [x, y]
-                                        data.append((image_path, keypoint))
-                                    else:
-                                        print("Could not parse keypoints:",
-                                              elements[1], elements[2])
-                                else:
-                                    print("Could not parse line:", line)
+        with open(self.labels_file, "r") as file:
+            lines = file.readlines()
+            for line in lines:
+                match = re.match(r'([^,]+),"\((\d+),\s*(\d+)\)"', line.strip())
+                if match:
+                    image_name, x_str, y_str = match.groups()
+                    image_path = os.path.join(self.root_dir, image_name.strip())
+                    x = float(x_str)
+                    y = float(y_str)
+                    keypoint = [x, y]
+                    data.append((image_path, keypoint))
+                else:
+                    print("Invalid line format or unable to parse:", line.strip())
 
         return data
 
@@ -62,75 +44,58 @@ class HeatmapKeypointDataset(Dataset):
             print("Could not read image:", image_path)
             return None, None
 
-        scale_x = image.shape[1] / 255
-        scale_y = image.shape[0] / 255
-
+        # Scale keypoints to the range [0, 1]
+        scale_x = image.shape[1]
+        scale_y = image.shape[0]
         keypoints[0] = keypoints[0] / scale_x
         keypoints[1] = keypoints[1] / scale_y
 
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image = Image.fromarray(image)
 
-        transform = transforms.Compose([transforms.Resize(self.target_size),
-                                        transforms.ToTensor()])
+        transform = transforms.Compose([
+            transforms.Resize(self.target_size),
+            transforms.ToTensor()
+        ])
 
         image_resized = transform(image)
 
         heatmap = np.zeros(self.target_size, dtype=np.float32)
-        keypoint_x, keypoint_y = keypoints
-        keypoint_x_scaled = int(
-            keypoint_x * (self.target_size[1] / image_resized.size(2)))
-        keypoint_y_scaled = int(
-            keypoint_y * (self.target_size[0] / image_resized.size(1)))
+        keypoint_x_scaled = int(keypoints[0] * self.target_size[1])
+        keypoint_y_scaled = int(keypoints[1] * self.target_size[0])
         heatmap[keypoint_y_scaled, keypoint_x_scaled] = 1.0
-
+        
+        heatmap = np.expand_dims(heatmap, axis=0)  # Change shape from (H, W) to (1, H, W)
         heatmap = torch.tensor(heatmap, dtype=torch.float32)
 
         return image_resized, heatmap
 
 # not heatmap!
 class KeypointDataset(Dataset):
-    def __init__(self, root_dir, target_size=(256, 256)):
+    def __init__(self, root_dir, labels_file, target_size=(256, 256)):
         self.root_dir = root_dir
+        self.labels_file = os.path.join(root_dir, labels_file)
         self.target_size = target_size
         self.data = self.load_data()
 
     def load_data(self):
         data = []
-        for folder_name in os.listdir(self.root_dir):
-            if folder_name != '103':
-                folder_path = os.path.join(self.root_dir, folder_name)
-                if os.path.isdir(folder_path):
-                    txt_file_path = os.path.join(folder_path, "labels.txt")
-                    if os.path.exists(txt_file_path):
-                        with open(txt_file_path, "r") as file:
-                            lines = file.readlines()
-                            for line in lines[1:]:
-                                elements = line.replace(
-                                    '"', '').strip().split(",")
-                                if all(element is not None for element in elements):
-                                    image_path = os.path.join(
-                                        folder_path, elements[0])
-                                    if not os.path.exists(image_path):
-                                        print("Could not find image:",
-                                              image_path)
-                                        continue
-                                    x_match = re.search(
-                                        r'\((\d+)', elements[1])
-                                    y_match = re.search(
-                                        r'(\d+)\)', elements[2])
-                                    if x_match and y_match:
-                                        x = float(x_match.group(1))
-                                        y = float(y_match.group(1))
-                                        keypoint = [x, y]
-                                        data.append((image_path, keypoint))
-                                    else:
-                                        print("Could not parse keypoints:",
-                                              elements[1], elements[2])
-                                else:
-                                    print("Could not parse line:", line)
+        with open(self.labels_file, "r") as file:
+            lines = file.readlines()
+            for line in lines:
+                match = re.match(r'([^,]+),"\((\d+),\s*(\d+)\)"', line.strip())
+                if match:
+                    image_name, x_str, y_str = match.groups()
+                    image_path = os.path.join(self.root_dir, image_name.strip())
+                    x = float(x_str)
+                    y = float(y_str)
+                    keypoint = [x, y]
+                    data.append((image_path, keypoint))
+                else:
+                    print("Invalid line format or unable to parse:", line.strip())
 
         return data
+
 
     def __len__(self):
         return len(self.data)

@@ -12,7 +12,7 @@ import torch.nn.init as init
 class CustomKeypointModel(nn.Module):
     def __init__(self):
         super(CustomKeypointModel, self).__init__()
-        resnet18 = models.resnet18(pretrained=True)
+        resnet18 = models.resnet18(weights=ResNet18_Weights.DEFAULT)
         self.resnet18 = nn.Sequential(*list(resnet18.children())[:-2])
 
         fc_input = resnet18.fc.in_features
@@ -61,7 +61,7 @@ class CustomKeypointModel(nn.Module):
 class single_point(nn.Module):
     def __init__(self):
           super(single_point, self).__init__()
-          resnet18 = models.resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
+          resnet18 = models.resnet18(weights=ResNet18_Weights.DEFAULT)
           self.resnet18 = nn.Sequential(*list(resnet18.children())[:-1])
           fc_input = resnet18.fc.in_features
           self.fc = nn.Linear(fc_input, 2)

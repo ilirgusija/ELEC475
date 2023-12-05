@@ -16,7 +16,6 @@ class CustomKeypointModel(nn.Module):
         self.resnet18 = nn.Sequential(*list(resnet18.children())[:-2])
 
         fc_input = resnet18.fc.in_features
-        print(fc_input)
 
         self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
 

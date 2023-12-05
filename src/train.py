@@ -5,8 +5,9 @@ from torch.utils.data import DataLoader, random_split
 import torch.optim as optim
 import os
 from PIL import Image
-from KeypointDataset import HeatmapKeypointDataset, KeypointDataset
-from model import single_point, CustomKeypointModel
+from KeypointDataset import HeatmapKeypointDataset
+from model import CustomKeypointModel
+import argparse
 
 def plot_losses(train_losses, val_losses, model_name, output_dir):
     epochs = range(1, len(train_losses) + 1)
@@ -31,8 +32,34 @@ def plot_losses(train_losses, val_losses, model_name, output_dir):
 
     # Optionally, if you want to close the plot to free memory
     plt.close()
+    
+def plot_image_and_heatmap(image_tensor, heatmap_tensor, target_heatmap_tensor):
+    plt.figure(figsize=(12, 6))
 
-def train_model(train_loader, test_loader, model, criterion, optimizer, num_epochs, early_stopping_patience, params_dir, device):
+    # Detach tensors from the computation graph and convert to numpy arrays
+    image = image_tensor.detach().permute(1, 2, 0).numpy()
+    heatmap = heatmap_tensor.detach().squeeze(0).numpy()
+    target_heatmap = target_heatmap_tensor.detach().squeeze(0).numpy()
+
+    # Plotting the image
+    plt.subplot(1, 3, 1)
+    plt.imshow(image)
+    plt.title("Resized Image")
+
+   # Plotting the predicted heatmap
+    plt.subplot(1, 3, 2)
+    plt.imshow(heatmap, cmap='hot', interpolation='nearest')
+    plt.title("Predicted Heatmap")
+
+    # Plotting the target heatmap
+    plt.subplot(1, 3, 3)
+    # Ensure the single point appears red by setting vmin=0 and vmax=1
+    plt.imshow(target_heatmap, cmap='hot', interpolation='nearest', vmin=0, vmax=1)
+    plt.title("Target Heatmap")
+
+    plt.show()
+
+def train_model(train_loader, test_loader, model, criterion, optimizer, num_epochs, early_stopping_patience, output_dir, device, verbose=False):
     model.to(device)
 
     train_losses = []
@@ -77,7 +104,8 @@ def train_model(train_loader, test_loader, model, criterion, optimizer, num_epoc
 
         if average_val_loss < best_val_loss:
             print(f"Validation loss improved from {best_val_loss:.4f} to {average_val_loss:.4f}. Saving model...")
-            plot_image_and_heatmap(inputs[0].cpu(), outputs[0].cpu(), targets[0].cpu())
+            if(verbose):
+                plot_image_and_heatmap(inputs[0].cpu(), outputs[0].cpu(), targets[0].cpu())
             best_val_loss = average_val_loss
             checkpoint = {
                 'epoch': epoch + 1,
@@ -86,7 +114,7 @@ def train_model(train_loader, test_loader, model, criterion, optimizer, num_epoc
                 'train_losses': train_losses,
                 'val_losses': val_losses
             }
-            checkpoint_path = os.path.join(params_dir, f'best_model_checkpoint.pth')
+            checkpoint_path = os.path.join(output_dir, f'best_model_checkpoint.pth')
             torch.save(checkpoint, checkpoint_path)
             early_stopping_counter = 0
         else:
@@ -99,57 +127,39 @@ def train_model(train_loader, test_loader, model, criterion, optimizer, num_epoc
 
     return model, train_losses, val_losses
 
-def plot_image_and_heatmap(image_tensor, heatmap_tensor, target_heatmap_tensor):
-    plt.figure(figsize=(12, 6))
-
-    # Detach tensors from the computation graph and convert to numpy arrays
-    image = image_tensor.detach().permute(1, 2, 0).numpy()
-    heatmap = heatmap_tensor.detach().squeeze(0).numpy()
-    target_heatmap = target_heatmap_tensor.detach().squeeze(0).numpy()
-
-    # Plotting the image
-    plt.subplot(1, 3, 1)
-    plt.imshow(image)
-    plt.title("Resized Image")
-
-   # Plotting the predicted heatmap
-    plt.subplot(1, 3, 2)
-    plt.imshow(heatmap, cmap='hot', interpolation='nearest')
-    plt.title("Predicted Heatmap")
-
-    # Plotting the target heatmap
-    plt.subplot(1, 3, 3)
-    # Ensure the single point appears red by setting vmin=0 and vmax=1
-    plt.imshow(target_heatmap, cmap='hot', interpolation='nearest', vmin=0, vmax=1)
-    plt.title("Target Heatmap")
-
-    plt.show()
-
-def custom_keypoint_main():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    root_folder = "../data/oxford-iiit-pet-noses/images/"
-    train_label_file = "train_noses.3.txt"
-    test_label_file = "test_noses.txt"
+def main(root_folder, output_dir, train_label_file, test_label_file, b, device):
     train_dataset = HeatmapKeypointDataset(root_folder, train_label_file, target_size=(256, 256))
     test_dataset = HeatmapKeypointDataset(root_folder, test_label_file, target_size=(256, 256))
     model = CustomKeypointModel()
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr = 0.001)
 
-
     num_epochs = 30
     early_stopping_patience = 3
-    batch_size = 32
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=7)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=7)
+    train_loader = DataLoader(train_dataset, batch_size=b, shuffle=True, num_workers=7)
+    test_loader = DataLoader(test_dataset, batch_size=b, shuffle=False, num_workers=7)
 
-    output_dir = "../heatmap_output/"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     trained_model, train_losses, val_losses = train_model(train_loader, test_loader, model, criterion, optimizer, num_epochs, early_stopping_patience, output_dir, device)
     plot_losses(train_losses, val_losses, "CustomKeypoint", output_dir)
 
-if __name__=="__main__":
-    custom_keypoint_main()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train Keypoint Model")
+    parser.add_argument('--root_folder', type=str, required=True, help="Path to the root folder containing images")
+    parser.add_argument('--output_dir', type=str, required=True, help="Path to the model params save location")
+    parser.add_argument('--train_labels', type=str, required=True, help="Name to the train labels file")
+    parser.add_argument('--test_labels', type=str, required=True, help="Name to the test labels file")
+    parser.add_argument('--batch_size', type=int, required=True, help="Batch size for training and validation")
+
+    args = parser.parse_args()
+    train_labels = args.train_labels
+    output_dir = args.output_dir
+    test_labels = args.test_labels
+    root_folder = args.root_folder
+    b = args.batch_size
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    main(root_folder, output_dir, train_labels, test_labels, b, device)

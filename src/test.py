@@ -7,6 +7,53 @@ import torchvision.transforms.functional as F
 from PIL import Image
 import matplotlib.pyplot as plt
 from torchsummary import summary
+import torch
+import numpy as np
+from scipy.spatial.distance import euclidean
+
+
+
+def compute_heatmap_centroid(heatmap):
+    # Generate a grid of coordinates (x, y)
+    y_indices, x_indices = np.indices(heatmap.shape)
+
+    # Compute the weighted average of the coordinates, using heatmap values as weights
+    total_heat = heatmap.sum()
+    x_center = (x_indices * heatmap).sum() / total_heat
+    y_center = (y_indices * heatmap).sum() / total_heat
+
+    return int(y_center), int(x_center)
+
+def evaluate_localization_accuracy(model, dataset, device):
+    model.to(device)
+    model.eval()
+
+    distances = []
+
+    for image, target_heatmap in dataset:
+        # Predict the heatmap
+        image = image.to(device)
+
+        with torch.no_grad():
+            output_heatmap = model(image).cpu().squeeze().numpy()
+
+        # Get the ground truth keypoint location (assuming it's the maximum point)
+        true_y, true_x = np.unravel_index(np.argmax(target_heatmap.squeeze().numpy()), target_heatmap.shape[1:])
+
+        # Get the predicted centroid of the heatmap
+        pred_y, pred_x = compute_heatmap_centroid(output_heatmap)
+
+        # Calculate the Euclidean distance and store it
+        distance = euclidean((true_x, true_y), (pred_x, pred_y))
+        distances.append(distance)
+
+    # Calculate statistics
+    min_distance = torch.min(distances)
+    mean_distance = torch.mean(distances)
+    max_distance = torch.max(distances)
+    std_distance = torch.std(distances)
+
+    return min_distance, mean_distance, max_distance, std_distance
 
 def test_heatmap_main():
     root_folder = "../data/oxford-iiit-pet-noses/images"

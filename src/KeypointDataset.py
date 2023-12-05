@@ -9,10 +9,22 @@ from PIL import Image
 import torch
 import sys
 
+def generate_gaussian_heatmap(centre, image_size):
+    # Create a grid of (x,y) coordinates
+    x = np.arange(0, image_size[1], 1, float)
+    y = np.arange(0, image_size[0], 1, float)
+    y = y[:, np.newaxis]
+
+    sigma = 7
+    # Calculate the 2D Gaussian
+    heatmap = np.exp(-((x - centre[0])**2 + (y - centre[1])**2) / (2 * sigma**2))
+
+    return heatmap
+
 class HeatmapKeypointDataset(Dataset):
     def __init__(self, root_dir, labels_file, target_size=(256, 256)):
         self.root_dir = root_dir
-        self.labels_file = os.path.join(root_dir, labels_file)
+        self.labels_file = labels_file
         self.target_size = target_size
         self.data = self.load_data()
 
@@ -24,7 +36,7 @@ class HeatmapKeypointDataset(Dataset):
                 match = re.match(r'([^,]+),"\((\d+),\s*(\d+)\)"', line.strip())
                 if match:
                     image_name, x_str, y_str = match.groups()
-                    image_path = os.path.join(self.root_dir, image_name.strip())
+                    image_path = os.path.join(self.root_dir, , image_name.strip())
                     x = float(x_str)
                     y = float(y_str)
                     keypoint = [x, y]
@@ -63,12 +75,13 @@ class HeatmapKeypointDataset(Dataset):
         heatmap = np.zeros(self.target_size, dtype=np.float32)
         keypoint_x_scaled = int(keypoints[0] * self.target_size[1])
         keypoint_y_scaled = int(keypoints[1] * self.target_size[0])
-        heatmap[keypoint_y_scaled, keypoint_x_scaled] = 1.0
-        
+        heatmap = generate_gaussian_heatmap((keypoint_x_scaled, keypoint_y_scaled), self.target_size)
+
         heatmap = np.expand_dims(heatmap, axis=0)  # Change shape from (H, W) to (1, H, W)
         heatmap = torch.tensor(heatmap, dtype=torch.float32)
 
         return image_resized, heatmap
+
 
 # not heatmap!
 class KeypointDataset(Dataset):

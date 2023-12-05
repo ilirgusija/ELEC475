@@ -1,5 +1,3 @@
-from KeypointDataset import KeypointDataset, HeatmapKeypointDataset
-from model import CustomKeypointModel, single_point
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
@@ -7,6 +5,8 @@ from torch.utils.data import DataLoader, random_split
 import torch.optim as optim
 import os
 from PIL import Image
+from KeypointDataset import HeatmapKeypointDataset, KeypointDataset
+from model import single_point, CustomKeypointModel
 
 def plot_losses(train_losses, val_losses, model_name, output_dir):
     epochs = range(1, len(train_losses) + 1)
@@ -40,7 +40,7 @@ def train_model(train_loader, test_loader, model, criterion, optimizer, num_epoc
 
     best_val_loss = float('inf')
     early_stopping_counter = 0
-    print_interval = 20
+    print_interval = len(train_loader) // 2
 
     for epoch in range(num_epochs):
         model.train()
@@ -69,12 +69,13 @@ def train_model(train_loader, test_loader, model, criterion, optimizer, num_epoc
                 outputs = model(inputs)
                 val_loss = criterion(outputs, targets)
                 running_val_loss += val_loss.item()
-
         average_val_loss = running_val_loss / len(test_loader)
         val_losses.append(average_val_loss)
 
+
         print(f"Epoch {epoch + 1}/{num_epochs}, Train Loss: {average_train_loss:.4f}, Validation Loss: {average_val_loss:.4f}")
-            
+        plot_image_and_heatmap(inputs[0].cpu(), outputs[0].cpu(), targets[0].cpu())
+
         if average_val_loss < best_val_loss:
             print(f"Validation loss improved from {best_val_loss:.4f} to {average_val_loss:.4f}. Saving model...")
             best_val_loss = average_val_loss
@@ -89,7 +90,7 @@ def train_model(train_loader, test_loader, model, criterion, optimizer, num_epoc
             torch.save(checkpoint, checkpoint_path)
             early_stopping_counter = 0
         else:
-            early_stopping_counter += 1    
+            early_stopping_counter += 1
 
         # Check for early stopping
         if early_stopping_counter >= early_stopping_patience:
@@ -147,7 +148,7 @@ def single_point_main():
     model = single_point()
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr = 0.001)
-    
+
     # idx = torch.randint(0, len(dataset), (1,)).item()
     # image, keypoint = dataset[idx]
     # plot_image_with_keypoint(image, keypoint, target_size=(256, 256))
@@ -160,38 +161,48 @@ def single_point_main():
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     # print(len(train_loader), len(test_loader), test_loader)
-    
+
     output_dir="../single_point_output/"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    
+
     trained_model, train_losses, val_losses = train_model(train_loader, test_loader, model, criterion, optimizer, num_epochs, early_stopping_patience, output_dir, device)
     plot_losses(train_losses, val_losses, "single_point", output_dir)
-    
-def plot_image_and_heatmap(image_tensor, heatmap_tensor):
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+def plot_image_and_heatmap(image_tensor, heatmap_tensor, target_heatmap_tensor):
     plt.figure(figsize=(12, 6))
 
-    # Convert image tensor to numpy array and adjust dimensions (C, H, W) to (H, W, C)
-    image = image_tensor.permute(1, 2, 0).numpy()
-
-    # Convert heatmap tensor to numpy array and remove channel dimension (1, H, W) to (H, W)
-    heatmap = heatmap_tensor.squeeze(0).numpy()
+    # Detach tensors from the computation graph and convert to numpy arrays
+    image = image_tensor.detach().permute(1, 2, 0).numpy()
+    heatmap = heatmap_tensor.detach().squeeze(0).numpy()
+    target_heatmap = target_heatmap_tensor.detach().squeeze(0).numpy()
 
     # Plotting the image
-    plt.subplot(1, 2, 1)
+    plt.subplot(1, 3, 1)
     plt.imshow(image)
     plt.title("Resized Image")
 
-    # Plotting the heatmap
-    plt.subplot(1, 2, 2)
+   # Plotting the predicted heatmap
+    plt.subplot(1, 3, 2)
     plt.imshow(heatmap, cmap='hot', interpolation='nearest')
-    plt.title("Heatmap")
+    plt.title("Predicted Heatmap")
+
+    # Plotting the target heatmap
+    plt.subplot(1, 3, 3)
+    # Ensure the single point appears red by setting vmin=0 and vmax=1
+    plt.imshow(target_heatmap, cmap='hot', interpolation='nearest', vmin=0, vmax=1)
+    plt.title("Target Heatmap")
 
     plt.show()
-    
+
+
+
 def custom_keypoint_main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    root_folder = "../data/oxford-iiit-pet-noses/images/"
+    root_folder = "/content/drive/MyDrive/475L5/oxford-iiit-pet-noses/"
     train_label_file = "train_noses.3.txt"
     test_label_file = "test_noses.txt"
     train_dataset = HeatmapKeypointDataset(root_folder, train_label_file, target_size=(256, 256))
@@ -199,11 +210,8 @@ def custom_keypoint_main():
     model = CustomKeypointModel()
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr = 0.001)
-    
-    # idx = torch.randint(0, len(train_dataset), (1,)).item()
-    # image, heatmap = train_dataset[idx]
-    # plot_image_and_heatmap(image, heatmap)
-    
+
+
     num_epochs = 30
     early_stopping_patience = 3
     batch_size = 32
@@ -212,16 +220,11 @@ def custom_keypoint_main():
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=7)
 
     # print(len(train_loader), len(test_loader), test_loader)
-    
-    output_dir = "../heatmap_output/"
+
+    output_dir = "/content/drive/MyDrive/475L5/heatmap_output/"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    
+
     trained_model, train_losses, val_losses = train_model(train_loader, test_loader, model, criterion, optimizer, num_epochs, early_stopping_patience, output_dir, device)
     plot_losses(train_losses, val_losses, "CustomKeypoint", output_dir)
-      
-if __name__ == "__main__":
 
-    # Call the main function with parsed arguments
-    # single_point_main()
-    custom_keypoint_main()

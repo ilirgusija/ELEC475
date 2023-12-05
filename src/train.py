@@ -74,10 +74,10 @@ def train_model(train_loader, test_loader, model, criterion, optimizer, num_epoc
 
 
         print(f"Epoch {epoch + 1}/{num_epochs}, Train Loss: {average_train_loss:.4f}, Validation Loss: {average_val_loss:.4f}")
-        plot_image_and_heatmap(inputs[0].cpu(), outputs[0].cpu(), targets[0].cpu())
 
         if average_val_loss < best_val_loss:
             print(f"Validation loss improved from {best_val_loss:.4f} to {average_val_loss:.4f}. Saving model...")
+            plot_image_and_heatmap(inputs[0].cpu(), outputs[0].cpu(), targets[0].cpu())
             best_val_loss = average_val_loss
             checkpoint = {
                 'epoch': epoch + 1,
@@ -98,79 +98,6 @@ def train_model(train_loader, test_loader, model, criterion, optimizer, num_epoc
             return model, train_losses, val_losses
 
     return model, train_losses, val_losses
-
-def plot_image_with_keypoint(image_tensor, keypoint, target_size):
-    plt.figure(figsize=(6, 6))
-
-    # Convert tensor to numpy array and adjust dimensions
-    image_np = image_tensor.permute(1, 2, 0).numpy()  # Change from (C, H, W) to (H, W, C)
-
-    plt.imshow(image_np)
-
-    # Adjust keypoint coordinates for the plot
-    # Assuming keypoint is already scaled according to the target_size
-    keypoint_x, keypoint_y = keypoint[0] * target_size[0], keypoint[1] * target_size[1]
-
-    # Create a red circle to mark the keypoint
-    plt.scatter([keypoint_x], [keypoint_y], color='red', s=50)
-
-    plt.title("Image with Keypoint")
-    plt.show()
-
-def check_images(root_dir):
-    total_images = 0
-    corrupt_images = 0
-
-    for subdir, dirs, files in os.walk(root_dir):
-        for file in files:
-            if file.lower().endswith('.jpg'):
-                total_images += 1
-                file_path = os.path.join(subdir, file)
-
-                # Attempt to open the image
-                try:
-                    with Image.open(file_path) as img:
-                        img.verify()  # Verify if it's a valid JPEG
-                except (IOError, SyntaxError) as e:
-                    corrupt_images += 1
-                    print('Corrupt image:', file_path)
-
-    print(f"Total images checked: {total_images}")
-    print(f"Corrupt images found: {corrupt_images}")
-
-def single_point_main():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    root_folder = "../data/oxford-iiit-pet-noses/images/"
-    train_label_file = "train_noses.3.txt"
-    test_label_file = "test_noses.txt"
-    train_dataset = KeypointDataset(root_folder, train_label_file, target_size=(256, 256))
-    test_dataset = KeypointDataset(root_folder, test_label_file, target_size=(256, 256))
-    model = single_point()
-    criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr = 0.001)
-
-    # idx = torch.randint(0, len(dataset), (1,)).item()
-    # image, keypoint = dataset[idx]
-    # plot_image_with_keypoint(image, keypoint, target_size=(256, 256))
-
-    num_epochs = 30
-    early_stopping_patience = 3
-    batch_size = 32
-
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
-
-    # print(len(train_loader), len(test_loader), test_loader)
-
-    output_dir="../single_point_output/"
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    trained_model, train_losses, val_losses = train_model(train_loader, test_loader, model, criterion, optimizer, num_epochs, early_stopping_patience, output_dir, device)
-    plot_losses(train_losses, val_losses, "single_point", output_dir)
-
-import numpy as np
-import matplotlib.pyplot as plt
 
 def plot_image_and_heatmap(image_tensor, heatmap_tensor, target_heatmap_tensor):
     plt.figure(figsize=(12, 6))
@@ -198,11 +125,9 @@ def plot_image_and_heatmap(image_tensor, heatmap_tensor, target_heatmap_tensor):
 
     plt.show()
 
-
-
 def custom_keypoint_main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    root_folder = "/content/drive/MyDrive/475L5/oxford-iiit-pet-noses/"
+    root_folder = "../data/oxford-iiit-pet-noses/images/"
     train_label_file = "train_noses.3.txt"
     test_label_file = "test_noses.txt"
     train_dataset = HeatmapKeypointDataset(root_folder, train_label_file, target_size=(256, 256))
@@ -219,12 +144,12 @@ def custom_keypoint_main():
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=7)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=7)
 
-    # print(len(train_loader), len(test_loader), test_loader)
-
-    output_dir = "/content/drive/MyDrive/475L5/heatmap_output/"
+    output_dir = "../heatmap_output/"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     trained_model, train_losses, val_losses = train_model(train_loader, test_loader, model, criterion, optimizer, num_epochs, early_stopping_patience, output_dir, device)
     plot_losses(train_losses, val_losses, "CustomKeypoint", output_dir)
 
+if __name__=="__main__":
+    custom_keypoint_main()

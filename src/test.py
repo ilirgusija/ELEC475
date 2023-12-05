@@ -2,15 +2,13 @@ import torch
 import matplotlib.pyplot as plt
 from KeypointDataset import KeypointDataset, HeatmapKeypointDataset
 from model import CustomKeypointModel, single_point
-import torch
-import torchvision.transforms.functional as F
 import matplotlib.pyplot as plt
 import warnings
-import torchvision.transforms as transforms
 import torch.cuda
 from torch.utils.data import DataLoader
-import torch.nn as nn
 import numpy as np
+import numpy as np
+from scipy.spatial.distance import euclidean
 warnings.filterwarnings("ignore")
 
 
@@ -51,10 +49,6 @@ def test(test_loader, model, loss_fn, device):
     std_distance = torch.std(distances)
 
     return mean_loss, min_distance, max_distance, mean_distance, std_distance, all_predictions
-import torch
-import numpy as np
-from scipy.spatial.distance import euclidean
-
 
 
 def compute_heatmap_centroid(heatmap):
@@ -130,41 +124,6 @@ def test_heatmap_main():
     plt.title('Generated Heatmap')
 
     plt.show()
-        
-def test_single_main():
-    transform = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            transforms.RandomHorizontalFlip(),
-            transforms.Resize((224, 224)),
-        ]
-    )
-
-    batch_size = 512
-    root_folder = "../data/oxford-iiit-pet-noses/images/"
-    dataset = KeypointDataset(root_folder, "test_noses.txt", target_size=(256, 256))
-    test_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    checkpoint = torch.load('../single_point_output/best_model_checkpoint.pth', map_location=torch.device(device))
-    test_model = single_point()
-    test_model.load_state_dict(checkpoint['model_state_dict'])
-    test_model = test_model.to(device)
-    loss_fn = nn.MSELoss()
-    test_model.eval()
-    mean_loss, min_distance, max_distance, mean_distance, std_distance, preds = test(test_loader, test_model, loss_fn, device)
-
-    print("Mean Loss:", mean_loss)
-    print("Min Euclidean Distance:", min_distance)
-    print("Max Euclidean Distance:", max_distance)
-    print("Mean Euclidean Distance:", mean_distance)
-    print("Standard Deviation of Euclidean Distances:", std_distance)
-    
-    plt.title('Ground Truth and Predicted Points')
-    
-    plt.show()
     
 if __name__ == "__main__":
-    test_single_main()
-    # test_heatmap_main()
+    test_heatmap_main()

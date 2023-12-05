@@ -24,7 +24,7 @@ def generate_gaussian_heatmap(centre, image_size):
 class HeatmapKeypointDataset(Dataset):
     def __init__(self, root_dir, labels_file, target_size=(256, 256)):
         self.root_dir = root_dir
-        self.labels_file = labels_file
+        self.labels_file = os.path.join(root_dir, labels_file)
         self.target_size = target_size
         self.data = self.load_data()
 
@@ -36,7 +36,7 @@ class HeatmapKeypointDataset(Dataset):
                 match = re.match(r'([^,]+),"\((\d+),\s*(\d+)\)"', line.strip())
                 if match:
                     image_name, x_str, y_str = match.groups()
-                    image_path = os.path.join(self.root_dir, , image_name.strip())
+                    image_path = os.path.join(self.root_dir, image_name.strip())
                     x = float(x_str)
                     y = float(y_str)
                     keypoint = [x, y]

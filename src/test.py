@@ -9,6 +9,7 @@ import numpy as np
 import argparse
 import torch.nn as nn
 import os
+import time
 warnings.filterwarnings("ignore")
 
 def plot_image_and_heatmap(image_tensor, heatmap_tensor, target_heatmap_tensor, true_keypoint, predicted_keypoint, output_dir, i):
@@ -48,7 +49,6 @@ def plot_image_and_heatmap(image_tensor, heatmap_tensor, target_heatmap_tensor, 
     # Optionally, if you want to close the plot to free memory
     plt.close()
 
-
 def compute_batch_centroids(heatmaps):
     # print(f"validating heatmap shape: {heatmaps.shape}")
     batch_size, _, height, width = heatmaps.shape
@@ -74,13 +74,17 @@ def test(test_loader, model, loss_fn, device):
     true_keypoints = []
     pred_keypoints = []
     total_loss = 0.0
+    total_inference_time = 0.0
     with torch.no_grad():
         for data in test_loader:
             inputs, labels = data
             inputs, labels = inputs.to(device), labels.to(device)
+            
+            start_time = time.time() 
             outputs = model(inputs).to(device)
             loss = loss_fn(outputs, labels)
             total_loss += loss.item()
+            end_time = time.time() 
             
             # Compute centroids for the whole batch
             pred_y_centers, pred_x_centers = compute_batch_centroids(outputs)
@@ -102,7 +106,7 @@ def test(test_loader, model, loss_fn, device):
     min_distance = np.min(all_distances)
     max_distance = np.max(all_distances)
 
-    return mean_loss, min_distance, max_distance, mean_distance, std_distance, all_samples, true_keypoints, pred_keypoints
+    return mean_loss, total_inference_time, min_distance, max_distance, mean_distance, std_distance, all_samples, true_keypoints, pred_keypoints
 
 def main(root_folder, model_pth_path, labels_file, output_dir, b, device):
    
@@ -114,10 +118,10 @@ def main(root_folder, model_pth_path, labels_file, output_dir, b, device):
     test_model.load_state_dict(checkpoint['model_state_dict'])
     test_model.to(device).eval()
     
-    mean_loss, min_distance, max_distance, mean_distance, std_distance, pred_heatmaps, true_keypoints, pred_keypoints  = test(test_loader, test_model, nn.MSELoss(), device)
+    mean_loss, time, min_distance, max_distance, mean_distance, std_distance, pred_heatmaps, true_keypoints, pred_keypoints  = test(test_loader, test_model, nn.MSELoss(), device)
     
     # Print test results
-    print(f"Mean Loss: {mean_loss}, Min Distance: {min_distance}, Max Distance: {max_distance}, Mean Distance: {mean_distance}, Std Distance: {std_distance}")
+    print(f"Inference time {time}, Mean Loss: {mean_loss}, Min Distance: {min_distance}, Max Distance: {max_distance}, Mean Distance: {mean_distance}, Std Distance: {std_distance}")
 
     num_samples_to_visualize = 3
     for i in range(num_samples_to_visualize):

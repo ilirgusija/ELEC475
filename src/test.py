@@ -80,11 +80,11 @@ def test(test_loader, model, loss_fn, device):
             inputs, labels = data
             inputs, labels = inputs.to(device), labels.to(device)
             
-            start_time = time.time() 
+            start_time = time.perf_counter() 
             outputs = model(inputs).to(device)
             loss = loss_fn(outputs, labels)
             total_loss += loss.item()
-            end_time = time.time() 
+            end_time = time.perf_counter() 
             
             # Compute centroids for the whole batch
             pred_y_centers, pred_x_centers = compute_batch_centroids(outputs)
@@ -121,7 +121,7 @@ def main(root_folder, model_pth_path, labels_file, output_dir, b, device):
     mean_loss, time, min_distance, max_distance, mean_distance, std_distance, pred_heatmaps, true_keypoints, pred_keypoints  = test(test_loader, test_model, nn.MSELoss(), device)
     
     # Print test results
-    print(f"Inference time {time}, Mean Loss: {mean_loss}, Min Distance: {min_distance}, Max Distance: {max_distance}, Mean Distance: {mean_distance}, Std Distance: {std_distance}")
+    print(f"Inference time {time:.15f}, Mean Loss: {mean_loss}, Min Distance: {min_distance}, Max Distance: {max_distance}, Mean Distance: {mean_distance}, Std Distance: {std_distance}")
 
     num_samples_to_visualize = 3
     for i in range(num_samples_to_visualize):

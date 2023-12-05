@@ -1,105 +1,79 @@
 import torch
 import matplotlib.pyplot as plt
-from KeypointDataset import KeypointDataset, HeatmapKeypointDataset
-from model import CustomKeypointModel, single_point
-import matplotlib.pyplot as plt
+from KeypointDataset import  HeatmapKeypointDataset
+from model import CustomKeypointModel
 import warnings
 import torch.cuda
 from torch.utils.data import DataLoader
 import numpy as np
-import numpy as np
+import torch.nn as nn
 from scipy.spatial.distance import euclidean
+
 warnings.filterwarnings("ignore")
 
+def compute_batch_centroids(heatmaps):
+    print(f"validating heatmap shape: {heatmaps.shape}")
+    _, _, height, width = heatmaps.shape
+    y_indices, x_indices = torch.meshgrid(torch.arange(height), torch.arange(width))
 
-def calculate_distances(predictions, labels):
-    distances = [torch.norm(pred - label).unsqueeze(0) for pred, label in zip(predictions, labels)]
-    distances_tensor = torch.cat(distances)
-    return distances_tensor
+    # Reshape to allow broadcasting
+    y_indices = y_indices.view(1, height, width)
+    x_indices = x_indices.view(1, height, width)
+
+    total_heat = heatmaps.sum(dim=[1, 2], keepdim=True)
+    y_center = (y_indices * heatmaps).sum(dim=[1, 2]) / total_heat.squeeze()
+    x_center = (x_indices * heatmaps).sum(dim=[1, 2]) / total_heat.squeeze()
+
+    return y_center, x_center
 
 def test(test_loader, model, loss_fn, device):
-    print("testing...")
-    model.eval()
-    all_predictions = []
-    all_labels = []
+    all_distances = []
+    all_samples = []
     total_loss = 0.0
     with torch.no_grad():
         for data in test_loader:
             inputs, labels = data
-            inputs = inputs.to(device)
-            labels = labels.to(device)
+            inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
             loss = loss_fn(outputs, labels)
             total_loss += loss.item()
-            all_predictions.append(outputs)  # Assuming outputs are in numpy format
-            all_labels.append(labels)  # Assuming labels are in numpy format
+            
+            # Compute centroids for the whole batch
+            pred_y_centers, pred_x_centers = compute_batch_centroids(outputs)
+            true_y_centers, true_x_centers = compute_batch_centroids(labels)
+
+            # Calculate distances for the batch
+            distances = torch.sqrt((true_x_centers - pred_x_centers)**2 + (true_y_centers - pred_y_centers)**2)
+            all_distances.extend(distances.cpu().numpy())
+
+            # Collect samples for visualization
+            for i in range(inputs.shape[0]):
+                all_samples.append((inputs[i], labels[i], outputs[i]))
+
 
     mean_loss = total_loss / len(test_loader)
+    mean_distance = torch.mean(all_distances)
+    std_distance = torch.std(all_distances)
+    min_distance = np.min(all_distances)
+    max_distance = np.max(all_distances)
 
-    # Convert lists to tensors
-    all_predictions_tensor = torch.cat(all_predictions, dim=0)
-    all_labels_tensor = torch.cat(all_labels, dim=0)
+    return mean_loss, min_distance, max_distance, mean_distance, std_distance, all_samples
 
-    # Calculate distances
-    distances = calculate_distances(all_predictions_tensor, all_labels_tensor)
-
-    min_distance = torch.min(distances)
-    max_distance = torch.max(distances)
-    mean_distance = torch.mean(distances)
-    std_distance = torch.std(distances)
-
-    return mean_loss, min_distance, max_distance, mean_distance, std_distance, all_predictions
-
-
-def compute_heatmap_centroid(heatmap):
-    # Generate a grid of coordinates (x, y)
-    y_indices, x_indices = np.indices(heatmap.shape)
-
-    # Compute the weighted average of the coordinates, using heatmap values as weights
-    total_heat = heatmap.sum()
-    x_center = (x_indices * heatmap).sum() / total_heat
-    y_center = (y_indices * heatmap).sum() / total_heat
-
-    return int(y_center), int(x_center)
-
-def evaluate_localization_accuracy(model, dataset, device):
-    model.to(device)
-    model.eval()
-
-    distances = []
-
-    for image, target_heatmap in dataset:
-        # Predict the heatmap
-        image = image.to(device)
-
-        with torch.no_grad():
-            output_heatmap = model(image).cpu().squeeze().numpy()
-
-        # Get the ground truth keypoint location (assuming it's the maximum point)
-        true_y, true_x = np.unravel_index(np.argmax(target_heatmap.squeeze().numpy()), target_heatmap.shape[1:])
-
-        # Get the predicted centroid of the heatmap
-        pred_y, pred_x = compute_heatmap_centroid(output_heatmap)
-
-        # Calculate the Euclidean distance and store it
-        distance = euclidean((true_x, true_y), (pred_x, pred_y))
-        distances.append(distance)
-
-    # Calculate statistics
-    min_distance = torch.min(distances)
-    mean_distance = torch.mean(distances)
-    max_distance = torch.max(distances)
-    std_distance = torch.std(distances)
-
-    return min_distance, mean_distance, max_distance, std_distance
-
-def test_heatmap_main():
-    root_folder = "../data/oxford-iiit-pet-noses/images/"
-    dataset = HeatmapKeypointDataset(root_folder, "test_noses.txt", target_size=(256, 256))
+def main(root_folder, model_pth_path, labels_file):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    dataset = HeatmapKeypointDataset(root_folder, labels_file, target_size=(256, 256))
+    test_loader = DataLoader(dataset, batch_size=64, shuffle=False)
+    
     test_model = CustomKeypointModel()
-    checkpoint = torch.load('../heatmap_output/best_model_checkpoint.pth')
+    checkpoint = torch.load(model_pth_path)
     test_model.load_state_dict(checkpoint['model_state_dict'])
-    test_model.eval()
+    test_model.to(device).eval()
+    
+    mean_loss, min_distance, max_distance, mean_distance, std_distance, all_predictions = test(test_loader, test_model, nn.MSELoss(), device)
+    
+    # Print test results
+    print(f"Mean Loss: {mean_loss}, Min Distance: {min_distance}, Max Distance: {max_distance}, Mean Distance: {mean_distance}, Std Distance: {std_distance}")
 
     idx = torch.randint(0, len(dataset), (1,)).item()
     image, heatmap = dataset[idx]
@@ -110,8 +84,6 @@ def test_heatmap_main():
 
     heatmap_np = output_heatmap.numpy()
     heatmap_np = heatmap_np.squeeze()
-
-    print('here', heatmap_np)
     
     # Plot the original image
     plt.subplot(1, 2, 1)
@@ -126,4 +98,7 @@ def test_heatmap_main():
     plt.show()
     
 if __name__ == "__main__":
+    labels_file = "test_noses.txt"
+    root_folder = "../data/oxford-iiit-pet-noses/images/"
+    model_pth_path = '../heatmap_output/best_model_checkpoint.pth'
     test_heatmap_main()

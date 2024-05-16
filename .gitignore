@@ -3,3 +3,7 @@ data
 output
 *tar*
 *zip*
+pet_noses/data/oxford-iiit-pet-noses/images/*
+!pet_noses/data/oxford-iiit-pet-noses/images/train_noses.3.txt
+!pet_noses/data/oxford-iiit-pet-noses/images/test_noses.txt
+pet_noses/*.pth

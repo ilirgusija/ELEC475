@@ -1,0 +1,2 @@
+# Note this assumes you have the labels file in the images dir
+python3 test.py --root_folder "../data/oxford-iiit-pet-noses/images/" --model_pth_path "../heatmap_output/best_model_checkpoint.pth" --labels_file "test_noses.txt" --output "../heatmap_output/" --batch_size 64
